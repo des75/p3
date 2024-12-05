@@ -1,0 +1,4 @@
+%% encoding: UTF-8
+{application,p3}.
+{modules,[p3_app,p3_file_h,p3_reader,p3_reader_cache_b,p3_reader_cache_ets,
+          p3_reader_sup,p3_sup,p3_webserver]}.
