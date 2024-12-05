@@ -39,11 +39,6 @@ dialyzer:
 edoc:
 	ERL_FLAGS="-config config/sys.config" $(REBAR) edoc
 
-rebar.cover.spec: $(ERL_SOURCES)
-	@echo '{incl_dirs, [' >>$@
-	echo '"_build/test/lib/$(PROJECT)/ebin"' >>$@
-	@echo ']}.' >>$@
-
 # Release.
 
 RELEASE_NAME = p3
