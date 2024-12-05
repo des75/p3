@@ -1,13 +1,9 @@
-# ==================================================
-# KOBIL ecosystem
-# ==================================================
-
-.PHONY: all init upgrade compile clean test xref shell dialyzer tags elvis doc
+.PHONY: all init upgrade compile clean test xref shell dialyzer tags doc
 
 PROJECT ?= $(notdir $(CURDIR))
 PROJECT := $(strip $(PROJECT))
 
-REBAR = ${PWD}/scripts/rebar3
+REBAR = rebar3
 
 SUITE ?= all
 
@@ -17,69 +13,40 @@ else
 	CT_SUITE = --suite ${SUITE}_SUITE
 endif
 
-ifneq ($(and $(BRANCH),$(BUILD_NUMBER)),)
-	NODE_NAME_OVERRIDE = --name="$(subst /,_,${BRANCH})@TC-${BUILD_NUMBER}"
-else
-	NODE_NAME_OVERRIDE =
-endif
-
 all: xref test dialyzer
 
-init: $(REBAR) update_index
-
-compile: init
+compile:
 	@${REBAR} compile
 
-clean: init
+clean:
 	@${REBAR} clean --all
 	@rm -f rebar.cover.spec
 	@rm -f rebar.lock
 
-test: init rebar.cover.spec elvis
-	./adapt_sys_config.sh
-	@${REBAR} ct --sys_config=config/test.config ${NODE_NAME_OVERRIDE} ${CT_SUITE} $(CT_OPTS)
+test: rebar.cover.spec
+	@${REBAR} ct --sys_config=config/sys_config ${CT_SUITE}
 
-xref: init
+xref:
 	@${REBAR} xref
 
-elvis:
-	@${REBAR} as test elvis
 
-shell: init rebar.cover.spec
+shell: rebar.cover.spec
 	@${REBAR} shell
 
-dialyzer: init
+dialyzer:
 	@${REBAR} dialyzer
 
-edoc: init
+edoc:
 	ERL_FLAGS="-config config/sys.config" $(REBAR) edoc
-
-tags:
-	@ctags --excmd=number --tag-relative=no --fields=+i+a+m+n+S --languages=erlang --exclude=_build -R 2> /dev/null
-
-scripts:
-	mkdir $@
-
-update_index:
-	@${REBAR} update
-
-$(REBAR): | scripts
-	curl -L -o $@ https://s3.amazonaws.com/rebar3/rebar3
-	chmod +x $@
 
 rebar.cover.spec: $(ERL_SOURCES)
 	@echo '{incl_dirs, [' >>$@
 	echo '"_build/test/lib/$(PROJECT)/ebin"' >>$@
 	@echo ']}.' >>$@
 
-doc: error_codes_doc
-
-error_codes_doc:
-	@ERL_FLAGS="-config config/sys.config" rebar3 as error_code_docs edoc
-
 # Release.
 
-RELEASE_NAME = presence
+RELEASE_NAME = p3
 
 release:
 	@${REBAR} release -n $(RELEASE_NAME)
