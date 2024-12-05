@@ -4,7 +4,7 @@
 % @version 1.0.0
 %% ===================================================================
 
--module(p3_file_h).
+-module(p3_random_h).
 
 -export([init/2]).
 -export([terminate/3]).
@@ -27,11 +27,10 @@ content_types_provided(Req, State) ->
   {[{<<"text/plain">>, read_file_v1}], Req, State}.
 
 read_file_v1(Req0, State) ->
-  <<"/", Path/binary>> = cowboy_req:path(Req0),
-  erlang:display(Path),
+  DesiredSize0 = cowboy_req:binding(size, Req0),
+  DesiredSize = erlang:binary_to_integer(DesiredSize0),
 
-  PathToFile = erlang:binary_to_list(Path),
-  Launch = p3_reader:start_reader([{type, file}, {path, PathToFile}]),
+  Launch = p3_reader:start_reader([{type, random}, {size, DesiredSize}]),
 
   Req =
     case Launch of

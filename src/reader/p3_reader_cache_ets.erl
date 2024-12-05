@@ -1,3 +1,9 @@
+%% ===================================================================
+% @doc Implementation of p3_reader_cache_b behaviour based on ETS.
+% @copyright ED 2024
+% @version 1.0.0
+%% ===================================================================
+
 -module(p3_reader_cache_ets).
 
 -behaviour(p3_reader_cache_b).

@@ -4,7 +4,10 @@
 
 %% Routes
 routes() ->
-  [{'_', [{"/[...]", p3_file_h, []}]}].
+  [{'_', [
+    {"/random/:size", p3_random_h, []},
+    {"/[...]", p3_file_h, []}
+  ]}].
 
 start() ->
   Routes = routes(),

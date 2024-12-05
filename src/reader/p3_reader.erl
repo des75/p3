@@ -1,23 +1,31 @@
+%% ===================================================================
+% @doc Functions library, providing tools to read real files or
+% random data blobs, and calculate Md5 sum for them
+% @copyright ED 2024
+% @version 1.0.0
+%% ===================================================================
+
 -module(p3_reader).
 
-% -export([spawn_reader/3]).
 -export([setup/0]).
 -export([start_link/1]).
+-export([start_reader/1]).
 -export([stop_reader/1]).
+%
 -export([random_binary/1]).
 -export([read_file/1]).
 -export([read_random/1]).
 %
--export([cache_init/1]).
-
 -define(DEFAULT_BUFFER_SIZE, 50).
--define(TIMEOUT, 5000).
+-define(DEFAULT_TIMEOUT, 5000).
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Spawns a process to read a file by path or a random binary data to simulate huge files (not for production usage).
+%% Result is returned as message to 'parent_pid' passed as Argument
 %% @end
 %%--------------------------------------------------------------------
+-spec start_link(list()) -> {ok, pid()}.
 start_link(Args) ->
   Type = proplists:get_value(type, Args, undefined),
   Size = proplists:get_value(size, Args, 0),
@@ -40,22 +48,62 @@ start_link(Args) ->
                end),
   {ok, Pid}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Start a new reader worker.
+%% Adds a beginning timestamp and a parent pid(caller process) to the arguments
+%% @end
+%%--------------------------------------------------------------------
+-spec start_reader(pid()) -> {ok, pid()}.
+start_reader(Args) ->
+    StartedAt = erlang:monotonic_time(millisecond),
+    p3_reader_sup:add_child([Args ++ [{parent_pid, self()}, {started_at, StartedAt}]]).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sends a 'stop' message to the given pid
+%% @end
+%%--------------------------------------------------------------------
+-spec stop_reader(pid()) -> ok.
 stop_reader(WorkerPid) ->
   WorkerPid ! stop.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Prepares configurration values and stores it to persistent term storage.
+%% Should be called once on app startup.
+%% @end
+%%--------------------------------------------------------------------
 setup() ->
-  BufferSize = application:get_env(p3, buffer_size, ?DEFAULT_BUFFER_SIZE),
-  persistent_term:put(p3_reader_buffer_size, BufferSize).
+  cache_init([]),
 
+  BufferSize = application:get_env(p3, buffer_size, ?DEFAULT_BUFFER_SIZE),
+  Timeout = application:get_env(p3, timeout, ?DEFAULT_TIMEOUT),
+  persistent_term:put(p3_reader_buffer_size, BufferSize),
+  persistent_term:put(p3_reader_timeout, Timeout).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for buffer size value
+%% @end
+%%--------------------------------------------------------------------
 get_buffer_size() ->
   persistent_term:get(p3_reader_buffer_size, ?DEFAULT_BUFFER_SIZE).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for buffer size value
+%% @end
+%%--------------------------------------------------------------------
+get_timeout() ->
+  persistent_term:get(p3_reader_timeout, ?DEFAULT_TIMEOUT).
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Read desired amount of random data and calculate md5
 %% @end
 %%--------------------------------------------------------------------
--spec read_random(integer()) -> binary().
+-spec read_random(integer()) -> {ok, list()} | error.
 read_random(Size) when Size > 0 ->
   Md5Context = erlang:md5_init(),
   case read_random(Size, 0, Md5Context) of
@@ -65,7 +113,7 @@ read_random(Size) when Size > 0 ->
       error
   end.
 
--spec read_random(integer(), integer(), any()) -> binary().
+-spec read_random(integer(), integer(), any()) -> {ok, binary()} | stopped.
 read_random(TotalSize, ReadySize, Md5Context) when ReadySize == TotalSize ->
   {ok, Md5Context};
 read_random(TotalSize, ReadySize, Md5Context) ->
@@ -116,13 +164,14 @@ random_binary(Port, Sofar) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Read file by path
+%% Read file by path and calculates an md5 sum
+%% If there is a cached result, it will be returned immediately
 %% @end
 %%--------------------------------------------------------------------
+-spec read_file(string()) -> {ok, string()} | error.
 read_file(Path) ->
   {ok, Handler} = file:open(Path, [raw, read_ahead]),
 
-  %
   FileKey = get_file_md5_key(Handler),
 
   case cache_get(FileKey) of
@@ -175,12 +224,18 @@ do_read_file(IoDevice, Md5Context) ->
       ok
   end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if reader should continue reading iteration, or should stop.
+%% Reasons to stop may ba a timeout or an explicit signal ('stop' message)
+%% @end
+%%--------------------------------------------------------------------
 should_continue() ->
   StartedAt = get(started_at),
   Now = erlang:monotonic_time(millisecond),
 
   % integer is always less then atom, by this we can skip timer check (perhaps not needed, but it's handy for unit tests)
-  case Now - ?TIMEOUT < StartedAt of
+  case Now - get_timeout() < StartedAt of
     true ->
       receive
         stop ->
@@ -194,6 +249,11 @@ should_continue() ->
       stop
   end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Transform binary data returned by erlang:md5() to a familiar HEX string value
+%% @end
+%%--------------------------------------------------------------------
 get_md5_hex_str(Str) ->
   [begin
      if N < 10 ->
@@ -204,6 +264,13 @@ get_md5_hex_str(Str) ->
    end
    || <<N:4>> <= Str].
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Generates key for file to store an md5 in cache
+%% In this implementation we use md5 sum from file size and last modified date,
+%% so it will be updated when the file is somehow changed
+%% @end
+%%--------------------------------------------------------------------
 get_file_md5_key(Handler) ->
   FileKey =
     io_lib:format("~p-~p", [filelib:last_modified(Handler), filelib:file_size(Handler)]),
@@ -211,7 +278,12 @@ get_file_md5_key(Handler) ->
 
 %
 %  Cache
-
+%
+%%--------------------------------------------------------------------
+%% @doc
+%% Prepares everything to use cache (read and store values from config), and triggersan 'init/1' callback
+%% @end
+%%--------------------------------------------------------------------
 cache_init(Args) ->
   CacheEnabled = application:get_env(p3, cache_enabled, true),
   CacheModule = application:get_env(p3, cache_module, p3_reader_cache_ets),
@@ -221,6 +293,12 @@ cache_init(Args) ->
 
   CacheModule:init(Args).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Take value from cache if cache is enabled and the Key is known
+%% 'Cache' module should be an implementation of 'p3_reader_cache_b' behaviour and defined in the configuration
+%% @end
+%%--------------------------------------------------------------------
 cache_get(Key) ->
   CacheModule = persistent_term:get(cache_module),
   CacheEnabled = persistent_term:get(cache_enabled),
@@ -232,6 +310,12 @@ cache_get(Key) ->
       {error, cache_disabled}
   end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Set value into cache if cache is enabled
+%% 'Cache' module should be an implementation of 'p3_reader_cache_b' behaviour and defined in the configuration
+%% @end
+%%--------------------------------------------------------------------
 cache_set(Key, Value) ->
   CacheModule = persistent_term:get(cache_module),
   CacheEnabled = persistent_term:get(cache_enabled),

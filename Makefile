@@ -24,7 +24,7 @@ clean:
 	@rm -f rebar.lock
 
 test: rebar.cover.spec
-	@${REBAR} ct --sys_config=config/sys_config ${CT_SUITE}
+	@${REBAR} ct --cover --sys_config=config/sys_config ${CT_SUITE}
 
 xref:
 	@${REBAR} xref
