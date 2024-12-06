@@ -34,7 +34,8 @@ start_link(Args) ->
   Path = proplists:get_value(path, Args, undefined),
 
   ParentPid = proplists:get_value(parent_pid, Args),
-  StartedAt = proplists:get_value(started_at, Args),
+
+  StartedAt = erlang:monotonic_time(millisecond),
 
   Pid =
     spawn_link(fun() ->
@@ -58,8 +59,7 @@ start_link(Args) ->
 %%--------------------------------------------------------------------
 -spec start_reader(pid()) -> {ok, pid()}.
 start_reader(Args) ->
-    StartedAt = erlang:monotonic_time(millisecond),
-    p3_reader_sup:add_child([Args ++ [{parent_pid, self()}, {started_at, StartedAt}]]).
+    p3_reader_sup:add_child([Args ++ [{parent_pid, self()}]]).
 
 %%--------------------------------------------------------------------
 %% @doc
