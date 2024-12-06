@@ -20,17 +20,15 @@ compile:
 
 clean:
 	@${REBAR} clean --all
-	@rm -f rebar.cover.spec
 	@rm -f rebar.lock
 
-test: rebar.cover.spec
+test:
 	@${REBAR} ct --cover --sys_config=config/sys_config ${CT_SUITE}
 
 xref:
 	@${REBAR} xref
 
-
-shell: rebar.cover.spec
+run:
 	@${REBAR} shell
 
 dialyzer:

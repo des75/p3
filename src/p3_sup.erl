@@ -13,12 +13,6 @@
 -define(SERVER, ?MODULE).
 
 start_link() ->
-    lager:start(),
-    application:ensure_all_started(cowboy),
-
-    p3_webserver:start(),
-    p3_reader:setup(),
-
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %% sup_flags() = #{strategy => strategy(),         % optional

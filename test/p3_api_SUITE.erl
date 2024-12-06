@@ -9,15 +9,19 @@ all() ->
     [{group, http}].
 
 groups() ->
-    BaseTests = [hello_world],
-    [{http, [parallel], BaseTests}].
+    BaseTests = [can_do_get_file, can_do_head_file, can_do_get_random],
+    [{http, [], BaseTests}].
 
 init_per_suite(Config) ->
     ct:pal("Path: ~p~n", [code:get_path()]),
+    application:load(p3),
+    application:start(p3),
+    inets:start(),
     Config.
 
 end_per_suite(_Config) ->
     application:stop(p3),
+    application:unload(p3),
     ok.
 
 init_per_group(_Group, Config) ->
@@ -30,5 +34,16 @@ end_per_group(_Group, Config) ->
 
 %
 
-hello_world(_Config) ->
-    ok.
+can_do_get_file(_Config) ->
+    {ok, {{_Version, 204, _ReasonPhrase}, Headers, _Body}} =
+        httpc:request(get, {"http://localhost:12080/1.jpg", []}, [], []),
+    ?assertEqual("345514c76fe70aea7b876562745abf86", proplists:get_value("etag", Headers)).
+
+can_do_head_file(_Config) ->
+    {ok, {{_Version, 204, _ReasonPhrase}, Headers, _Body}} =
+        httpc:request(head, {"http://localhost:12080/1.jpg", []}, [], []),
+    ?assertEqual("345514c76fe70aea7b876562745abf86", proplists:get_value("etag", Headers)).
+
+can_do_get_random(_Config) ->
+    {ok, {{_Version, 204, _ReasonPhrase}, _Headers, _Body}} =
+        httpc:request(get, {"http://localhost:12080/random/100", []}, [], []).

@@ -15,15 +15,18 @@ groups() ->
          can_read_random_data_of_different_sizes,
          can_not_read_zero_size,
          can_not_read_negative],
-    [{http, [parallel], BaseTests}].
+    [{http, [], BaseTests}].
 
 init_per_suite(Config) ->
     ct:pal("Path: ~p~n", [code:get_path()]),
-    application:ensure_all_started(p3),
+    application:load(p3),
+    application:start(p3),
+    inets:start(),
     Config.
 
 end_per_suite(_Config) ->
     application:stop(p3),
+    application:unload(p3),
     ok.
 
 init_per_group(_Group, Config) ->
@@ -37,7 +40,7 @@ end_per_group(_Group, Config) ->
 %
 
 can_read_file(_Config) ->
-    {ok, Md5} = p3_reader:read_file(code:priv_dir(p3) ++ "/1.jpg"),
+    {ok, Md5} = p3_reader:read_file("/1.jpg"),
     % we read known file, so md5 is always same
     ?assertEqual("345514c76fe70aea7b876562745abf86", Md5).
 

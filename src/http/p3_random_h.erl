@@ -37,12 +37,10 @@ read_file_v1(Req0, State) ->
       {ok, WorkerPid} ->
         receive
           {file_read_result, {ok, Md5}} ->
-            % {Md5, Req0, State};
             cowboy_req:reply(204, #{<<"etag">> => Md5}, Req0);
           {file_read_result, _} ->
             p3_reader:stop_reader(WorkerPid),
             cowboy_req:reply(500, Req0)
-        % {<<"nok">>, Req0, State}
         after 5000 ->
           p3_reader:stop_reader(WorkerPid),
           cowboy_req:reply(500, Req0)

@@ -170,7 +170,7 @@ random_binary(Port, Sofar) ->
 %%--------------------------------------------------------------------
 -spec read_file(string()) -> {ok, string()} | error.
 read_file(Path) ->
-  {ok, Handler} = file:open(Path, [raw, read_ahead]),
+  {ok, Handler} = file:open(code:priv_dir(p3) ++ Path, [raw, read_ahead]),
 
   FileKey = get_file_md5_key(Handler),
 
