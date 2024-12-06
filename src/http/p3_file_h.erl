@@ -30,6 +30,7 @@ read_file_v1(Req0, State) ->
   Path = cowboy_req:path(Req0),
   PathToFile = erlang:binary_to_list(Path),
   Launch = p3_reader:start_reader([{type, file}, {path, PathToFile}]),
+  Timeout = p3_reader:get_timeout(),
 
   Req =
     case Launch of
@@ -40,7 +41,7 @@ read_file_v1(Req0, State) ->
           {file_read_result, _} ->
             p3_reader:stop_reader(WorkerPid),
             cowboy_req:reply(500, Req0)
-        after 5000 ->
+        after Timeout ->
           p3_reader:stop_reader(WorkerPid),
           cowboy_req:reply(500, Req0)
         end;

@@ -29,6 +29,7 @@ content_types_provided(Req, State) ->
 read_file_v1(Req0, State) ->
   DesiredSize0 = cowboy_req:binding(size, Req0),
   DesiredSize = erlang:binary_to_integer(DesiredSize0),
+  Timeout = p3_reader:get_timeout(),
 
   Launch = p3_reader:start_reader([{type, random}, {size, DesiredSize}]),
 
@@ -41,7 +42,7 @@ read_file_v1(Req0, State) ->
           {file_read_result, _} ->
             p3_reader:stop_reader(WorkerPid),
             cowboy_req:reply(500, Req0)
-        after 5000 ->
+        after Timeout ->
           p3_reader:stop_reader(WorkerPid),
           cowboy_req:reply(500, Req0)
         end;

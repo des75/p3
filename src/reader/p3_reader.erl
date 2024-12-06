@@ -16,6 +16,8 @@
 -export([read_file/1]).
 -export([read_random/1]).
 %
+-export([get_timeout/0]).
+%
 -define(DEFAULT_BUFFER_SIZE, 50).
 -define(DEFAULT_TIMEOUT, 5000).
 
