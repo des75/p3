@@ -48,7 +48,14 @@ console: release
 	_build/default/rel/${RELEASE_NAME}/bin/${RELEASE_NAME} console
 
 start: release
-	_build/default/rel/${RELEASE_NAME}/bin/${RELEASE_NAME} start
+	_build/default/rel/${RELEASE_NAME}/bin/${RELEASE_NAME} daemon
 
 stop:
+	_build/default/rel/${RELEASE_NAME}/bin/${RELEASE_NAME} stop
+
+
+# Load Tests
+
+bench: start
+	cd scripts/apachebench-graphs && ./ab-graph_scale.sh -u http://localhost:12080/random/100 -n 10000 -c 100 -e 1000 -s 500 -w 6
 	_build/default/rel/${RELEASE_NAME}/bin/${RELEASE_NAME} stop
