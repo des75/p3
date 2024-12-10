@@ -9,7 +9,12 @@ all() ->
     [{group, http}].
 
 groups() ->
-    BaseTests = [can_do_get_file, can_do_head_file, can_do_get_random],
+    BaseTests =
+        [can_do_get_file,
+         can_do_head_file,
+         can_do_get_random,
+         fail_if_invalid_number,
+         fail_if_non_existing_file],
     [{http, [], BaseTests}].
 
 init_per_suite(Config) ->
@@ -47,3 +52,11 @@ can_do_head_file(_Config) ->
 can_do_get_random(_Config) ->
     {ok, {{_Version, 204, _ReasonPhrase}, _Headers, _Body}} =
         httpc:request(get, {"http://localhost:12080/random/100", []}, [], []).
+
+fail_if_invalid_number(_Config) ->
+    {ok, {{_Version, 500, _ReasonPhrase}, _Headers, _Body}} =
+        httpc:request(get, {"http://localhost:12080/random/qwerty", []}, [], []).
+
+fail_if_non_existing_file(_Config) ->
+    {ok, {{_Version, 500, _ReasonPhrase}, _Headers, _Body}} =
+        httpc:request(get, {"http://localhost:12080/random/qwerty", []}, [], []).
