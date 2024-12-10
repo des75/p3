@@ -17,6 +17,7 @@
 -export([read_random/1]).
 %
 -export([get_timeout/0]).
+
 %
 -define(DEFAULT_BUFFER_SIZE, 50).
 -define(DEFAULT_TIMEOUT, 5000).
@@ -42,9 +43,14 @@ start_link(Args) ->
                   put(started_at, StartedAt),
 
                   Result =
-                    case Type of
-                      file -> p3_reader:read_file(Path);
-                      random -> p3_reader:read_random(Size)
+                    try
+                      case Type of
+                        file -> p3_reader:read_file(Path);
+                        random -> p3_reader:read_random(Size)
+                      end
+                    catch
+                      E:C ->
+                        lager:error("Error while reading `~p` data with arguments ~p:~n ~p ~p", [Type, Args, E, C])
                     end,
 
                   ParentPid ! {file_read_result, Result}
@@ -59,7 +65,7 @@ start_link(Args) ->
 %%--------------------------------------------------------------------
 -spec start_reader(pid()) -> {ok, pid()}.
 start_reader(Args) ->
-    p3_reader_sup:add_child([Args ++ [{parent_pid, self()}]]).
+  p3_reader_sup:add_child([Args ++ [{parent_pid, self()}]]).
 
 %%--------------------------------------------------------------------
 %% @doc

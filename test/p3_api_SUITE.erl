@@ -59,4 +59,4 @@ fail_if_invalid_number(_Config) ->
 
 fail_if_non_existing_file(_Config) ->
     {ok, {{_Version, 500, _ReasonPhrase}, _Headers, _Body}} =
-        httpc:request(get, {"http://localhost:12080/random/qwerty", []}, [], []).
+        httpc:request(get, {"http://localhost:12080/non-existing-file.jpg", []}, [], []).
